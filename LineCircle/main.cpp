@@ -5,7 +5,7 @@
 #define abs(x) ((x)>0?(x):-(x))
 
 float window_size = 601;
-float grid_size = 10;
+float grid_size = 6;
 int half_window = (int)(window_size / 2);
 
 void InitEnvironment()
