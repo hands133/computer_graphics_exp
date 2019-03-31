@@ -19,6 +19,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "polygon3d", "polygon3d\poly
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "line_antialiasing", "line_antialiasing\line_antialiasing.vcxproj", "{23684161-8B45-4CA6-9751-1FA3029B1D6B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "bezier_draw", "bezier_draw\bezier_draw.vcxproj", "{BF11D5E0-149A-4AC5-ACEA-5D8972873852}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -109,6 +111,16 @@ Global
 		{23684161-8B45-4CA6-9751-1FA3029B1D6B}.Release|x64.Build.0 = Release|x64
 		{23684161-8B45-4CA6-9751-1FA3029B1D6B}.Release|x86.ActiveCfg = Release|Win32
 		{23684161-8B45-4CA6-9751-1FA3029B1D6B}.Release|x86.Build.0 = Release|Win32
+		{BF11D5E0-149A-4AC5-ACEA-5D8972873852}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{BF11D5E0-149A-4AC5-ACEA-5D8972873852}.Debug|x64.ActiveCfg = Debug|x64
+		{BF11D5E0-149A-4AC5-ACEA-5D8972873852}.Debug|x64.Build.0 = Debug|x64
+		{BF11D5E0-149A-4AC5-ACEA-5D8972873852}.Debug|x86.ActiveCfg = Debug|Win32
+		{BF11D5E0-149A-4AC5-ACEA-5D8972873852}.Debug|x86.Build.0 = Debug|Win32
+		{BF11D5E0-149A-4AC5-ACEA-5D8972873852}.Release|Any CPU.ActiveCfg = Release|Win32
+		{BF11D5E0-149A-4AC5-ACEA-5D8972873852}.Release|x64.ActiveCfg = Release|x64
+		{BF11D5E0-149A-4AC5-ACEA-5D8972873852}.Release|x64.Build.0 = Release|x64
+		{BF11D5E0-149A-4AC5-ACEA-5D8972873852}.Release|x86.ActiveCfg = Release|Win32
+		{BF11D5E0-149A-4AC5-ACEA-5D8972873852}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

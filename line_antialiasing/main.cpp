@@ -5,7 +5,7 @@
 #define abs(x) ((x)>0?(x):-(x))
 
 float window_size = 601;
-float grid_size = 4;
+float grid_size = 10;
 int half_window = (int)(window_size / 2);
 
 const bool ABOVE = true;
@@ -15,6 +15,11 @@ const double weightMatrix[3][3] =
 {	{1.0 / 16, 2.0 / 16, 1.0 / 16},
 	{2.0 / 16, 4.0 / 16, 2.0 / 16},
 	{1.0 / 16, 2.0 / 16, 1.0 / 16}	};
+
+const double BITweightMatrix[3][3] =
+{ {1.0 / 24, 1.0 / 12, 1.0 / 24},
+	{1.0 / 12, 1.0 / 2, 1.0 / 12},
+	{1.0 / 24, 1.0 / 12, 1.0 / 24} };
 
 const GLubyte maxGrayVal = 255;
 
