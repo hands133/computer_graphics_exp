@@ -154,12 +154,12 @@ void polyline<T>::drawBezier(const int& type)
 {	//绘制贝塞尔曲线
 	glColor3ub(0, 255, 0);
 	float t = 0.0;
-	const float step = 0.002;
+	const float step = 0.0001;
 	double posx = 0.0;
 	double posy = 0.0;
 	double weight = 0.0;
 
-	glPointSize(1.0);
+	glPointSize(2.0);
 
 	if (type == BEZIER_STUPID)
 	{	//传统方法绘制贝塞尔曲线
@@ -205,6 +205,7 @@ void polyline<T>::drawBezier(const int& type)
 			next = prev + 1;		//次头部
 			index = store->begin() + endIndex;	//修改位置
 			loopTimes = endIndex - 1;
+
 			while (index != store->end()) {
 				posx = (1.0 - t) * (double)(prev->first) + t * (double)(next->first);
 				posy = (1.0 - t) * (double)(prev->second) + t * (double)(next->second);
@@ -215,6 +216,7 @@ void polyline<T>::drawBezier(const int& type)
 				prev++;		//头部增一
 				next++;		//次头部增一
 				iterTimes++;//迭代次数增一
+
 				if (iterTimes == loopTimes)
 				{	//说明一组点已经生成结束
 					prev++;	//头部自增
@@ -223,6 +225,10 @@ void polyline<T>::drawBezier(const int& type)
 					iterTimes = 0;	//迭代次数归零
 				}
 			}
+			GLubyte r = t * t * 255;
+			GLubyte b = 2 * t * (1 - t) * 255;
+			GLubyte g = (1 - t) * (1 - t) * 255;
+			glColor3ub(r, g, b);
 			glBegin(GL_POINTS);
 			glVertex2d(posx, posy);
 			glEnd();
