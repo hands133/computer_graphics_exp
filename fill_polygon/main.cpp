@@ -44,9 +44,9 @@ void drawEdge(void)
 	//poly.bfsFill(color, 150, 150);
 	//GLubyte Newcolor[3] = { 120, 150 ,180 };
 	//poly.scanFill(Newcolor);
-	int XL = 75;
+	int XL = 25;
 	int XR = 225;
-	int YB = 125;
+	int YB = 75;
 	int YT = 400;
 	poly.polyReccut(XL, XR, YB, YT);
 

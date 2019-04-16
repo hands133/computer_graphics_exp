@@ -39,6 +39,17 @@ public:
 	void drawPoints(const int type);	//绘制顶点
 	void drawEdges();					//绘制多边形折线
 	void drawBezier(const int &type);	//绘制贝塞尔曲线
+	void drawConvexHull(GLubyte *color);//绘制折线的凸包
+
+	pair<T,T>& findNearestPoint(
+		const int& posx, const int& posy,
+		const int& radius, int& theIndex);
+
+	void setPByIndex(const int& posx, const int& posy, const int& theIndex)
+	{
+		nodes->at(theIndex).first = posx;
+		nodes->at(theIndex).second = posy;
+	}
 
 	void cleanNodes()
 	{	//清空结点
@@ -49,7 +60,7 @@ public:
 private:
 	int endIndex;	//数组结尾指针
 	//存放结点个数的数组，两个分量分别为 x 和 y
-	vector<pair<T, T>> *nodes;
+	vector<pair<T, T> > *nodes;
 	int windowSize;	//窗口尺寸
 
 	long int combination(const long int& m, const long int& n);	//计算组合数公式
@@ -154,7 +165,7 @@ void polyline<T>::drawBezier(const int& type)
 {	//绘制贝塞尔曲线
 	glColor3ub(0, 255, 0);
 	float t = 0.0;
-	const float step = 0.0001;
+	const float step = 0.02;
 	double posx = 0.0;
 	double posy = 0.0;
 	double weight = 0.0;
@@ -181,65 +192,69 @@ void polyline<T>::drawBezier(const int& type)
 	}
 	else if (type == BEZIER_NEW)
 	{	//将结点放在数组中
-		vector<pair<double, double>> *store = new vector<pair<double, double>>();
-		store->resize(endIndex * (endIndex + 1) / 2);
+		vector<pair<double, double> > *store = new vector<pair<double, double>>();
+		store->resize(endIndex);
 		//复制，此处为避免精度损失采用 double 类型
 		for (int i = 0; i < endIndex; i++)
 		{
 			store->at(i).first = (double)nodes->at(i).first;
 			store->at(i).second = (double)nodes->at(i).second;
 		}
-		//初始化数组迭代器
-		typename vector<pair<double, double>>::iterator prev = store->begin();	//指向头部
-		typename vector<pair<double, double>>::iterator next = store->begin();	//指向次头部
-		next++;
+		vector<pair<double, double> >::iterator prev;	//指向头部
+		vector<pair<double, double> >::iterator next;	//指向次头部
+		double posx = 0.0, posy = 0.0;		//迭代点坐标
 
-		typename vector<pair<double, double>>::iterator index = store->begin() + endIndex;	//指向修改位置
-		int loopTimes = endIndex - 1;	//生成 loopTimes 组点
-		int iterTimes = 0;	//生成一组点的迭代次数
+		glLineWidth(2);
+		glBegin(GL_LINE_STRIP);
 		while (t < (1.0 + step / 2))
-		{	//循环生成点
-			posx = posy = 0;	//绘制点初值
-			iterTimes = 0;		//生成一组点的迭代次数
-			prev = store->begin();	//头部
-			next = prev + 1;		//次头部
-			index = store->begin() + endIndex;	//修改位置
-			loopTimes = endIndex - 1;
-
-			while (index != store->end()) {
-				posx = (1.0 - t) * (double)(prev->first) + t * (double)(next->first);
-				posy = (1.0 - t) * (double)(prev->second) + t * (double)(next->second);
-				index->first = posx;
-				index->second = posy;
-
-				index++;	//修改位置增一
-				prev++;		//头部增一
-				next++;		//次头部增一
-				iterTimes++;//迭代次数增一
-
-				if (iterTimes == loopTimes)
-				{	//说明一组点已经生成结束
-					prev++;	//头部自增
-					next++;	//次头部自增
-					loopTimes--;	//生成组数减一
-					iterTimes = 0;	//迭代次数归零
+		{
+			for (int i = 0; i < endIndex; i++)
+			{
+				store->at(i).first = (double)nodes->at(i).first;
+				store->at(i).second = (double)nodes->at(i).second;
+			}
+			for (int i = 0; i < endIndex - 1; i++)
+			{
+				prev = store->begin();	//指向头部
+				next = store->begin();	//指向次头部
+				next++;
+				for (int j = 0; j < endIndex - i - 1; j++)
+				{
+					posx = (1.0 - t) * (prev->first) + t * (next->first);
+					posy = (1.0 - t) * (prev->second) + t * (next->second);
+					prev->first = posx;
+					prev->second = posy;
+					prev++;
+					next++;
 				}
 			}
 			GLubyte r = t * t * 255;
 			GLubyte b = 2 * t * (1 - t) * 255;
 			GLubyte g = (1 - t) * (1 - t) * 255;
 			glColor3ub(r, g, b);
-			glBegin(GL_POINTS);
 			glVertex2d(posx, posy);
-			glEnd();
-			glFlush();
 			t += step;
 		}
+		glEnd();
+		glFlush();
+		glLineWidth(1.0);
 		delete store;
 	}
 	else			//等待完善
 		return;
+	
 	glColor3ub(255, 255, 255);
+}
+
+template <typename T>
+void polyline<T>::drawConvexHull(GLubyte *color)
+{
+	GLubyte r = color[0];
+	GLubyte g = color[1];
+	GLubyte b = color[2];
+	//绘制所在的凸包
+	//先求凸包
+
 }
 
 template <typename T>
@@ -267,6 +282,34 @@ double polyline<T>::B_i_n(const int& i,const double& t)
 	long int comb = combination(endIndex - 1, i);
 	double res = (double)comb * pow(t, i) * pow(1 - t, endIndex - 1 - i);
 	return res;
+}
+
+template <typename T>
+pair<T, T>& polyline<T>::findNearestPoint(
+	const int& posx, const int& posy,
+	const int& radius, int& theIndex)
+{
+	theIndex = -1;
+	static pair<T, T> node(-1, -1);
+	for (int i = 0; i < endIndex; i++)
+	{
+		int disx2 = (nodes->at(i).first - posx) * (nodes->at(i).first - posx);
+		int disy2 = (nodes->at(i).second - posy) * (nodes->at(i).second - posy);
+		if (disx2 + disy2 < radius * radius)
+		{
+			node.first = nodes->at(i).first;
+			node.second = nodes->at(i).second;
+			theIndex = i;
+			return node;
+		}
+		else
+		{
+			node.first = -1;
+			node.second = -1;
+			theIndex == -1;
+		}
+	}
+	return node;
 }
 
 #endif
