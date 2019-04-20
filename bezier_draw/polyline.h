@@ -17,11 +17,7 @@
 
 #define BEZIER_STUPID 0
 #define BEZIER_NEW 1
-/*
-#define abs(x) ((x)>0?(x):-(x))
-#define max(a,b) ((a)>(b))?(a):(b)
-#define min(a,b) ((a)<(b))?(a):(b)
-*/
+
 using namespace std;
 
 template <typename T>
@@ -41,16 +37,30 @@ public:
 	void drawBezier(const int &type);	//绘制贝塞尔曲线
 	void drawConvexHull(GLubyte *color);//绘制折线的凸包
 
+	//找到距离 (posx, posy) 最近的点（返回顶点）
 	pair<T,T>& findNearestPoint(
 		const int& posx, const int& posy,
 		const int& radius, int& theIndex);
+	//找到距离 (posx, posy) 最近的边（返回边起始顶点的下标）
+	const int& findNearestEdge(const int& posx, const int& posy, const int& width);
 
 	void setPByIndex(const int& posx, const int& posy, const int& theIndex)
 	{
 		nodes->at(theIndex).first = posx;
 		nodes->at(theIndex).second = posy;
 	}
-
+	void insertByIndex(const int& posx, const int& posy, const int& theIndex)
+	{
+		nodes->resize(++endIndex);
+		nodes->insert(nodes->begin() + theIndex + 1, pair<int, int>(posx, posy));
+	}
+	void eraseByIndex(const int& theIndex)
+	{
+		if (theIndex < 0 || theIndex >= endIndex)
+			return;
+		nodes->erase(nodes->begin() + theIndex);
+		nodes->resize(--endIndex);
+	}
 	void cleanNodes()
 	{	//清空结点
 		endIndex = 0;
@@ -63,8 +73,8 @@ private:
 	vector<pair<T, T> > *nodes;
 	int windowSize;	//窗口尺寸
 
-	long int combination(const long int& m, const long int& n);	//计算组合数公式
-	long int factorial(const int &n);		//求n的阶乘
+	long int combination(const long int& m, const long int& n);	//计算组合数
+	long int factorial(const int &n);		//阶乘
 	double B_i_n(const int& i,const double& t);		//计算点的权重
 };
 
@@ -100,7 +110,7 @@ void polyline<T>::addNode(const T&x, const T&y)
 	if (endIndex == nodes->size())	//开辟更多的空间
 		nodes->resize(nodes->size() * 2);
 	nodes->at(endIndex).first = x;
-	nodes->at(endIndex).second = windowSize - y;
+	nodes->at(endIndex).second = y;
 	endIndex++;
 }
 
@@ -204,6 +214,8 @@ void polyline<T>::drawBezier(const int& type)
 		vector<pair<double, double> >::iterator next;	//指向次头部
 		double posx = 0.0, posy = 0.0;		//迭代点坐标
 
+		glColor3ub(255, 0, 0);	//设定曲线颜色为红色
+
 		glLineWidth(2);
 		glBegin(GL_LINE_STRIP);
 		while (t < (1.0 + step / 2))
@@ -228,10 +240,10 @@ void polyline<T>::drawBezier(const int& type)
 					next++;
 				}
 			}
-			GLubyte r = t * t * 255;
-			GLubyte b = 2 * t * (1 - t) * 255;
-			GLubyte g = (1 - t) * (1 - t) * 255;
-			glColor3ub(r, g, b);
+			//GLubyte r = t * t * 255;
+			//GLubyte b = 2 * t * (1 - t) * 255;
+			//GLubyte g = (1 - t) * (1 - t) * 255;
+			//glColor3ub(r, g, b);
 			glVertex2d(posx, posy);
 			t += step;
 		}
@@ -311,5 +323,46 @@ pair<T, T>& polyline<T>::findNearestPoint(
 	}
 	return node;
 }
+
+template <typename T>
+const int& polyline<T>::findNearestEdge(
+	const int& posx, const int& posy, const int& width)
+{	//找到距离顶点 (posx, posy) 最近的距离小于 width/2 的顶点，并返回起始下标
+	if (nodes->size() <= 1)
+		return -1;
+	int index = -1;
+	int x1, y1, x2, y2;
+	int midx, midy;
+	int radiusSquare, distanceSquare;
+	int alpha = -1;		//比较因子
+	int distance = -1;	//点到直线的距离
+	int hWidth = width / 2;	//宽度的一半
+	for (int i = 0; i < endIndex - 1; i++)
+	{
+		x1 = nodes->at(i).first;
+		y1 = nodes->at(i).second;
+		x2 = nodes->at(i + 1).first;
+		y2 = nodes->at(i + 1).second;
+		midx = (x1 + x2) / 2;	//中点横坐标
+		midy = (y1 + y2) / 2;	//中点纵坐标
+		radiusSquare = (x1 - midx) * (x1 - midx) + (y1 - midy) * (y1 - midy);
+		distanceSquare = (posx - midx) * (posx - midx) + (posy - midy) * (posy - midy);
+		
+		//判断点是否在圆外
+		if (distanceSquare > (radiusSquare - width))
+			index = -1;
+		else
+		{	//判断是否在 width 之内
+			alpha = sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2));
+			distance = abs((y2 - y1)*(posx - x1) - (posy - y1)*(x2 - x1));
+			if (distance > hWidth * alpha)
+				index = -1;
+			else
+				return i;
+		}
+	}
+	return -1;
+}
+
 
 #endif

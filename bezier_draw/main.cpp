@@ -7,9 +7,14 @@ using namespace std;
 float windowSize = 600;
 polyline<int> poly((int)windowSize, 1);
 
-bool inputting = false;		//正在输入点
-bool first = true;			//第一次输入
-bool modifyPoint = false;	//修改点
+bool BezierDrawn = false;	//判断是否绘制贝塞尔曲线
+bool leftButtonHold = false;
+bool rightButtonHold = false;	//用于判断左右键拖动
+//判断是否第一次点击鼠标左键
+//是则跳过，不是则清除屏幕删点
+bool first = true;			//第一次输入节点
+bool storePoint = false;	//左键点击记录要删除的点
+int index = -1;				//删除顶点的下标
 
 void InitEnvironment(double windowSize)	//初始化操作
 {
@@ -24,74 +29,137 @@ void InitEnvironment(double windowSize)	//初始化操作
 
 void mouseInput(int button, int state, int x, int y)
 {
+	int posx = x;				//横坐标
+	int posy = windowSize - y;	//纵坐标
+	int radius = 10;			//判断半径
+
+	int distance = -1;	//点到直线的距离
+
 	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
-	{	//左键按下状态
-		if (!inputting)
-		{	//inputting 为假，说明未开始绘制或者已经绘制完毕
-			inputting = true;
-			if (first)
-			{	//尚未开始绘制
-				first = false;
+	{	//左键按下
+		leftButtonHold = true;
+		if (!first)
+		{	//非第一次输入
+			//判断是否点击在顶点附近
+			//如果是则标定顶点并推出等待右键相应
+			pair<int, int>& nearNode = poly.findNearestPoint(posx, posy, radius, index);
+			if (index != -1)
+			{	//顶点附近
+				storePoint = true;
+				//高亮顶点
+				glClear(GL_COLOR_BUFFER_BIT);
+				poly.drawEdges();
+				if (BezierDrawn)
+					poly.drawBezier(BEZIER_NEW);
+				poly.drawPoints(DRAW_POINTS);
+				glBegin(GL_POINTS);
+				glColor3ub(0, 255, 0);
+				glVertex2i(nearNode.first, nearNode.second);
+				glColor3ub(255, 255, 255);
+				glEnd();
+				glFlush();
+				return;
+			}
+			//非点击顶点，判断
+			int position = poly.findNearestEdge(posx, posy, radius * 2);
+			if (position != -1)
+			{	//如果点在边的附近
+				poly.insertByIndex(posx, posy, position);
+				glClear(GL_COLOR_BUFFER_BIT);
+				poly.drawEdges();
+				if (BezierDrawn)
+					poly.drawBezier(BEZIER_NEW);
+				poly.drawPoints(DRAW_POINTS);
 			}
 			else
-			{	//绘制完毕
-				poly.cleanNodes();
-				glClear(GL_COLOR_BUFFER_BIT);
-
+			{
+				cout << "啥也没点到" << endl;
+				index = -1;	//什么节点都不删除
+				//判断是否已经绘制顶点
+				if (BezierDrawn)
+				{	//已经绘制曲线，清除缓冲区删除节点
+					glClear(GL_COLOR_BUFFER_BIT);
+					glFlush();
+					poly.cleanNodes();
+					BezierDrawn = false;
+				}
+				else
+				{	//尚未绘制曲线，表示正在输入
+					poly.addNode(posx, posy);
+					poly.drawEdges();
+					poly.drawPoints(DRAW_POINTS);
+				}
 			}
-			poly.addNode(x, y);
-			poly.drawPoints(DRAW_LAST_POINT);
 		}
 		else
-		{	//inputting 为真，正在输入
-			poly.addNode(x, y);
-			poly.drawPoints(DRAW_LAST_POINT);
+		{	//不是第一次点击
+			first = false;
+			poly.addNode(posx, posy);
+			poly.drawEdges();
+			poly.drawPoints(DRAW_POINTS);
 		}
 	}
 	else if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN)
-	{	//右键按下状态
-		if (inputting)
-		{	//inputting 为真，说明正在绘制当中，取消绘制并显示线段和曲线
-			inputting = false;
+	{	//右键按下
+		rightButtonHold = true;
+		if (index != -1)
+		{	//标定顶点，删除顶点并重画
+			poly.eraseByIndex(index);
+			glClear(GL_COLOR_BUFFER_BIT);
 			poly.drawEdges();
+			if (BezierDrawn)
+				poly.drawBezier(BEZIER_NEW);
+			poly.drawPoints(DRAW_POINTS);
+			index = -1;
+		}
+		else
+		{
 			poly.drawBezier(BEZIER_NEW);
 			poly.drawPoints(DRAW_POINTS);
-		}
-		else	//inputting 为假，说明尚未开始绘制或者绘制完毕，点击右键无用
-		{
-			inputting = false;
+			BezierDrawn = true;
 		}
 	}
+	else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP)
+	{	//左键放开
+		leftButtonHold = false;
+	}
+	else if (button == GLUT_RIGHT_BUTTON && state == GLUT_UP)
+	{
+		rightButtonHold = false;
+	}
 	else
-		return;		//其他按键无用
+		return;
 }
 
 void dragEntity(int x, int y)
 {
-	if (inputting)
-		return;
-	if (first)
-		return;
-	//鼠标拖拽函数
+	//函数只拖点，剩下的再说
 	int posx = x;
 	int posy = windowSize - y;
-	int radius = 10;	//半径五个像素之内的点为点击区域
+	int radius = 10;
 	int index = -1;
-	pair<int, int>& nearest = poly.findNearestPoint(posx, posy, radius, index);
+
+	pair<int, int>& nearPoint = poly.findNearestPoint(posx, posy, radius, index);
 	if (index == -1)
-	{
-		inputting = false;
 		return;
-	}
-	else
-	{
-		poly.setPByIndex(posx, posy, index);
-		glClear(GL_COLOR_BUFFER_BIT);	//清除屏幕上所有内容
-		//70 130 180 steelblue
-		//poly.drawConvexHull(GLubyte* color);
-		poly.drawEdges();
+
+	poly.setPByIndex(posx, posy, index);
+	glClear(GL_COLOR_BUFFER_BIT);
+	//70 130 180 steelblue
+	//poly.drawConvexHull(GLubyte* color);
+	poly.drawEdges();
+	if (BezierDrawn)
 		poly.drawBezier(BEZIER_NEW);
-		poly.drawPoints(DRAW_POINTS);
+	poly.drawPoints(DRAW_POINTS);
+
+	if (index != -1)
+	{
+		glBegin(GL_POINTS);
+		glColor3ub(0, 255, 0);
+		glVertex2i(posx, posy);
+		glColor3ub(255, 255, 255);
+		glEnd();
+		glFlush();
 	}
 }
 
