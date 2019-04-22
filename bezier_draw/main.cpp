@@ -43,6 +43,7 @@ void mouseInput(int button, int state, int x, int y)
 			//判断是否点击在顶点附近
 			//如果是则标定顶点并推出等待右键相应
 			pair<int, int>& nearNode = poly.findNearestPoint(posx, posy, radius, index);
+			//cout << "点击左键，index = " << index << endl;
 			if (index != -1)
 			{	//顶点附近
 				storePoint = true;
@@ -64,6 +65,7 @@ void mouseInput(int button, int state, int x, int y)
 			int position = poly.findNearestEdge(posx, posy, radius * 2);
 			if (position != -1)
 			{	//如果点在边的附近
+				index = position + 1;
 				poly.insertByIndex(posx, posy, position);
 				glClear(GL_COLOR_BUFFER_BIT);
 				poly.drawEdges();
@@ -73,21 +75,44 @@ void mouseInput(int button, int state, int x, int y)
 			}
 			else
 			{
-				cout << "啥也没点到" << endl;
-				index = -1;	//什么节点都不删除
+				//cout << "啥也没点到" << endl;
 				//判断是否已经绘制顶点
 				if (BezierDrawn)
-				{	//已经绘制曲线，清除缓冲区删除节点
+				{	//已经绘制曲线，在曲线末尾添加节点并重新绘制
+					glClear(GL_COLOR_BUFFER_BIT);
+					poly.addNode(posx, posy);
+					poly.drawEdges();
+					poly.drawBezier(BEZIER_NEW);
+					poly.drawPoints(DRAW_POINTS);
+					index = poly.size() - 1;
+					/*
 					glClear(GL_COLOR_BUFFER_BIT);
 					glFlush();
 					poly.cleanNodes();
 					BezierDrawn = false;
+					*/
 				}
 				else
 				{	//尚未绘制曲线，表示正在输入
 					poly.addNode(posx, posy);
 					poly.drawEdges();
 					poly.drawPoints(DRAW_POINTS);
+					
+					index = poly.size() - 1;
+					//cout << "啥也没点到，index = " << index << endl;
+
+					//高亮顶点
+					glClear(GL_COLOR_BUFFER_BIT);
+					poly.drawEdges();
+					if (BezierDrawn)
+						poly.drawBezier(BEZIER_NEW);
+					poly.drawPoints(DRAW_POINTS);
+					glBegin(GL_POINTS);
+					glColor3ub(0, 255, 0);
+					glVertex2i(poly.getByIndex(index).first, poly.getByIndex(index).second);
+					glColor3ub(255, 255, 255);
+					glEnd();
+					glFlush();
 				}
 			}
 		}
@@ -97,18 +122,27 @@ void mouseInput(int button, int state, int x, int y)
 			poly.addNode(posx, posy);
 			poly.drawEdges();
 			poly.drawPoints(DRAW_POINTS);
+			index = 0;
 		}
 	}
 	else if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN)
 	{	//右键按下
 		rightButtonHold = true;
+		int anotherIndex = -1;
+		pair<int, int>& theNearestNode = poly.findNearestPoint(posx, posy, radius, anotherIndex);
 		if (index != -1)
-		{	//标定顶点，删除顶点并重画
-			poly.eraseByIndex(index);
+		{
+			if (!BezierDrawn)
+			{	//尚未绘制 Bezier 曲线
+				BezierDrawn = true;
+			}
+			else
+			{	//绘制曲线则删点重画
+				poly.eraseByIndex(index);
+			}
 			glClear(GL_COLOR_BUFFER_BIT);
 			poly.drawEdges();
-			if (BezierDrawn)
-				poly.drawBezier(BEZIER_NEW);
+			poly.drawBezier(BEZIER_NEW);
 			poly.drawPoints(DRAW_POINTS);
 			index = -1;
 		}
@@ -117,6 +151,13 @@ void mouseInput(int button, int state, int x, int y)
 			poly.drawBezier(BEZIER_NEW);
 			poly.drawPoints(DRAW_POINTS);
 			BezierDrawn = true;
+			if (anotherIndex == -1)
+			{
+				BezierDrawn = false;
+				glClear(GL_COLOR_BUFFER_BIT);
+				poly.cleanNodes();
+				glFlush();
+			}
 		}
 	}
 	else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP)
@@ -137,11 +178,11 @@ void dragEntity(int x, int y)
 	int posx = x;
 	int posy = windowSize - y;
 	int radius = 10;
-	int index = -1;
-
-	pair<int, int>& nearPoint = poly.findNearestPoint(posx, posy, radius, index);
+	//cout << "拖动，index = " << index << endl;
 	if (index == -1)
 		return;
+	//pair<int, int>& nearPoint = poly.findNearestPoint(posx, posy, radius, index);
+	pair<int, int> point = poly.getByIndex(index);
 
 	poly.setPByIndex(posx, posy, index);
 	glClear(GL_COLOR_BUFFER_BIT);

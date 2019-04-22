@@ -61,6 +61,13 @@ public:
 		nodes->erase(nodes->begin() + theIndex);
 		nodes->resize(--endIndex);
 	}
+	const pair<T, T>& getByIndex(const int& theIndex)
+	{
+		if (theIndex < 0 || theIndex >= endIndex)
+			return pair<int, int>(-1, -1);
+		return nodes->at(theIndex);
+	}
+	const int& size() { return endIndex; }
 	void cleanNodes()
 	{	//清空结点
 		endIndex = 0;
@@ -108,7 +115,7 @@ template <typename T>
 void polyline<T>::addNode(const T&x, const T&y)
 {
 	if (endIndex == nodes->size())	//开辟更多的空间
-		nodes->resize(nodes->size() * 2);
+		nodes->resize(nodes->size() * 2 + 1);
 	nodes->at(endIndex).first = x;
 	nodes->at(endIndex).second = y;
 	endIndex++;
