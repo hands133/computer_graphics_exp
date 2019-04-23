@@ -58,7 +58,7 @@ void mouseInput(int button, int state, int x, int y)
 				glVertex2i(nearNode.first, nearNode.second);
 				glColor3ub(255, 255, 255);
 				glEnd();
-				glFlush();
+				glutSwapBuffers();
 				return;
 			}
 			//非点击顶点，判断
@@ -72,10 +72,10 @@ void mouseInput(int button, int state, int x, int y)
 				if (BezierDrawn)
 					poly.drawBezier(BEZIER_NEW);
 				poly.drawPoints(DRAW_POINTS);
+				glutSwapBuffers();
 			}
 			else
 			{
-				//cout << "啥也没点到" << endl;
 				//判断是否已经绘制顶点
 				if (BezierDrawn)
 				{	//已经绘制曲线，在曲线末尾添加节点并重新绘制
@@ -84,22 +84,15 @@ void mouseInput(int button, int state, int x, int y)
 					poly.drawEdges();
 					poly.drawBezier(BEZIER_NEW);
 					poly.drawPoints(DRAW_POINTS);
+					glutSwapBuffers();
 					index = poly.size() - 1;
-					/*
-					glClear(GL_COLOR_BUFFER_BIT);
-					glFlush();
-					poly.cleanNodes();
-					BezierDrawn = false;
-					*/
 				}
 				else
 				{	//尚未绘制曲线，表示正在输入
 					poly.addNode(posx, posy);
 					poly.drawEdges();
 					poly.drawPoints(DRAW_POINTS);
-					
 					index = poly.size() - 1;
-					//cout << "啥也没点到，index = " << index << endl;
 
 					//高亮顶点
 					glClear(GL_COLOR_BUFFER_BIT);
@@ -112,7 +105,7 @@ void mouseInput(int button, int state, int x, int y)
 					glVertex2i(poly.getByIndex(index).first, poly.getByIndex(index).second);
 					glColor3ub(255, 255, 255);
 					glEnd();
-					glFlush();
+					glutSwapBuffers();
 				}
 			}
 		}
@@ -144,6 +137,7 @@ void mouseInput(int button, int state, int x, int y)
 			poly.drawEdges();
 			poly.drawBezier(BEZIER_NEW);
 			poly.drawPoints(DRAW_POINTS);
+			glutSwapBuffers();
 			index = -1;
 		}
 		else
@@ -151,12 +145,13 @@ void mouseInput(int button, int state, int x, int y)
 			poly.drawBezier(BEZIER_NEW);
 			poly.drawPoints(DRAW_POINTS);
 			BezierDrawn = true;
+			glutSwapBuffers();
 			if (anotherIndex == -1)
 			{
 				BezierDrawn = false;
 				glClear(GL_COLOR_BUFFER_BIT);
 				poly.cleanNodes();
-				glFlush();
+				glutSwapBuffers();
 			}
 		}
 	}
@@ -178,10 +173,9 @@ void dragEntity(int x, int y)
 	int posx = x;
 	int posy = windowSize - y;
 	int radius = 10;
-	//cout << "拖动，index = " << index << endl;
+
 	if (index == -1)
 		return;
-	//pair<int, int>& nearPoint = poly.findNearestPoint(posx, posy, radius, index);
 	pair<int, int> point = poly.getByIndex(index);
 
 	poly.setPByIndex(posx, posy, index);
@@ -200,20 +194,20 @@ void dragEntity(int x, int y)
 		glVertex2i(posx, posy);
 		glColor3ub(255, 255, 255);
 		glEnd();
-		glFlush();
+		glutSwapBuffers();
 	}
 }
 
 void drawBezier(void)
 {
 	glClear(GL_COLOR_BUFFER_BIT);
-	glFlush();
+	glutSwapBuffers();
 }
 
 int main(int argc, char*argv[]) {
 
 	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_RGB | GLUT_SINGLE);
+	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
 	glutInitWindowPosition(100, 100);
 	glutInitWindowSize(windowSize, windowSize);
 	glutCreateWindow("Bezier 曲线");
