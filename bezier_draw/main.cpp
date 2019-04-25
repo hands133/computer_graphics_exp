@@ -16,6 +16,8 @@ bool first = true;			//第一次输入节点
 bool storePoint = false;	//左键点击记录要删除的点
 int index = -1;				//删除顶点的下标
 
+GLubyte steelBlue[3] = { 70, 130, 180 };	//锈蓝
+
 void InitEnvironment(double windowSize)	//初始化操作
 {
 	//设置清除颜色
@@ -49,6 +51,8 @@ void mouseInput(int button, int state, int x, int y)
 				storePoint = true;
 				//高亮顶点
 				glClear(GL_COLOR_BUFFER_BIT);
+				if (BezierDrawn)
+					poly.drawConvexHull(&steelBlue[0]);
 				poly.drawEdges();
 				if (BezierDrawn)
 					poly.drawBezier(BEZIER_NEW);
@@ -68,6 +72,8 @@ void mouseInput(int button, int state, int x, int y)
 				index = position + 1;
 				poly.insertByIndex(posx, posy, position);
 				glClear(GL_COLOR_BUFFER_BIT);
+				if (BezierDrawn)
+					poly.drawConvexHull(&steelBlue[0]);
 				poly.drawEdges();
 				if (BezierDrawn)
 					poly.drawBezier(BEZIER_NEW);
@@ -81,6 +87,7 @@ void mouseInput(int button, int state, int x, int y)
 				{	//已经绘制曲线，在曲线末尾添加节点并重新绘制
 					glClear(GL_COLOR_BUFFER_BIT);
 					poly.addNode(posx, posy);
+					poly.drawConvexHull(&steelBlue[0]);
 					poly.drawEdges();
 					poly.drawBezier(BEZIER_NEW);
 					poly.drawPoints(DRAW_POINTS);
@@ -96,6 +103,8 @@ void mouseInput(int button, int state, int x, int y)
 
 					//高亮顶点
 					glClear(GL_COLOR_BUFFER_BIT);
+					if (BezierDrawn)
+						poly.drawConvexHull(&steelBlue[0]);
 					poly.drawEdges();
 					if (BezierDrawn)
 						poly.drawBezier(BEZIER_NEW);
@@ -116,6 +125,7 @@ void mouseInput(int button, int state, int x, int y)
 			poly.drawEdges();
 			poly.drawPoints(DRAW_POINTS);
 			index = 0;
+			glutSwapBuffers();
 		}
 	}
 	else if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN)
@@ -134,6 +144,8 @@ void mouseInput(int button, int state, int x, int y)
 				poly.eraseByIndex(index);
 			}
 			glClear(GL_COLOR_BUFFER_BIT);
+			
+			poly.drawConvexHull(&steelBlue[0]);
 			poly.drawEdges();
 			poly.drawBezier(BEZIER_NEW);
 			poly.drawPoints(DRAW_POINTS);
@@ -169,6 +181,11 @@ void mouseInput(int button, int state, int x, int y)
 
 void dragEntity(int x, int y)
 {
+	// 关闭多重采样
+	glDisable(GLUT_MULTISAMPLE);
+	// 打开顶点的平滑处理
+	glEnable(GL_POINT_SMOOTH);
+
 	//函数只拖点，剩下的再说
 	int posx = x;
 	int posy = windowSize - y;
@@ -182,6 +199,12 @@ void dragEntity(int x, int y)
 	glClear(GL_COLOR_BUFFER_BIT);
 	//70 130 180 steelblue
 	//poly.drawConvexHull(GLubyte* color);
+	GLubyte *steelBlue = new GLubyte[3];
+	steelBlue[0] = 70;
+	steelBlue[1] = 130;
+	steelBlue[2] = 180;
+	if(BezierDrawn)
+		poly.drawConvexHull(steelBlue);
 	poly.drawEdges();
 	if (BezierDrawn)
 		poly.drawBezier(BEZIER_NEW);
@@ -196,6 +219,10 @@ void dragEntity(int x, int y)
 		glEnd();
 		glutSwapBuffers();
 	}
+	// 关闭顶点的平滑处理
+	glDisable(GL_POINT_SMOOTH);
+	// 打开多重采样
+	glEnable(GLUT_MULTISAMPLE);
 }
 
 void drawBezier(void)
@@ -207,7 +234,7 @@ void drawBezier(void)
 int main(int argc, char*argv[]) {
 
 	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
+	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_MULTISAMPLE);
 	glutInitWindowPosition(100, 100);
 	glutInitWindowSize(windowSize, windowSize);
 	glutCreateWindow("Bezier 曲线");

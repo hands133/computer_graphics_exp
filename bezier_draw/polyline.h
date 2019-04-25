@@ -6,6 +6,8 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <queue>
+#include <stack>
 
 #include <gl/glut.h>
 
@@ -19,6 +21,37 @@
 #define BEZIER_NEW 1
 
 using namespace std;
+
+template <typename T>
+struct queueNode
+{
+	int index;
+	T x;
+	T y;
+	queueNode(T& theX, T& theY, int& theIndex) : x(theX), y(theY), index(theIndex) {}
+	friend bool operator < (const queueNode& firstNode, const queueNode& secondNode)
+	{	//默认 (0, 0) 为原点，按照极角从小到大进行排序
+		int x1 = firstNode.x;
+		int y1 = firstNode.y;
+		int x2 = secondNode.x;
+		int y2 = secondNode.y;
+		if (x1 * x2 > 0)	//两者在 y 轴同一侧
+			return y1 * x2 > x1 * y2;
+		else if(x1 * x2 < 0)//两者在 x 轴两侧
+			return x1 < x2;
+		else
+		{	//某个顶点在 y 轴上
+			if (x1 == 0)
+				return x2 > 0;
+			//return (x2 == 0) ? false : (x2 < 0);
+			else if (x2 == 0)
+				return x1 < 0;
+				//return (x1 == 0) ? false : (x1 > 0);
+			else
+				return false;
+		}
+	}
+};
 
 template <typename T>
 class polyline
@@ -48,6 +81,8 @@ public:
 	{
 		nodes->at(theIndex).first = posx;
 		nodes->at(theIndex).second = posy;
+
+		calConvex();
 	}
 	void insertByIndex(const int& posx, const int& posy, const int& theIndex)
 	{
@@ -60,6 +95,27 @@ public:
 			return;
 		nodes->erase(nodes->begin() + theIndex);
 		nodes->resize(--endIndex);
+
+		bool delNode = false;
+		for (int i = 0; i < YorderIndex - 1; i++)
+		{
+			pair<T, T> index = Yorder->at(i);
+			if (index.first == theIndex)
+				delNode = true;
+			if (index.first > theIndex)
+				Yorder->at(i).first--;
+			if (delNode)
+				Yorder->at(i) = Yorder->at(i + 1);
+		}
+		Yorder->resize(--YorderIndex);
+		if(endIndex > 2)
+			calConvex();
+		else
+		{
+			convexNodes->clear();
+			convexNodes->resize(0);
+			convexIndex = 0;
+		}
 	}
 	const pair<T, T>& getByIndex(const int& theIndex)
 	{
@@ -77,12 +133,18 @@ public:
 private:
 	int endIndex;	//数组结尾指针
 	//存放结点个数的数组，两个分量分别为 x 和 y
-	vector<pair<T, T> > *nodes;
-	int windowSize;	//窗口尺寸
+	vector<pair<T, T> >* nodes;
+	vector<pair<T, T> >* Yorder;	//按照 Y 值排序的数组
+	int YorderIndex;	//Yorder 的长度
+	vector<pair<T, T> >* convexNodes;
+	int convexIndex;	//convexNodes 的长度
+	int windowSize;		//窗口尺寸
 
 	long int combination(const long int& m, const long int& n);	//计算组合数
 	long int factorial(const int &n);		//阶乘
 	double B_i_n(const int& i,const double& t);		//计算点的权重
+	const bool& calConvex();	//计算凸包
+	const bool& isLeft(const int& srcIndex, const int& destIndex, const int& judgeIndex);
 };
 
 template <typename T>
@@ -100,11 +162,28 @@ polyline<T>::polyline(const int& windowSize, int numOfVertices)
 	}
 
 	this->windowSize = windowSize;
-	nodes = new vector<pair<T, T>>();
+	nodes = new vector<pair<T, T> >();
 	nodes->resize(numOfVertices);
+	//初始化凸包
+	convexNodes = new vector<pair<T, T> >();
+	convexNodes->resize(numOfVertices);
+	convexIndex = 0;
+	//初始化序列
+	Yorder = new vector<pair<T, T> >();
+	Yorder->resize(numOfVertices);
+	YorderIndex = 0;
+	
 	pair<T, T> *node;
 	for (int i = 0; i < nodes->size(); i++) {
 		node = &(nodes->at(i));
+		node->first = 0;
+		node->second = 0;
+
+		node = &(Yorder->at(i));
+		node->first = 0;
+		node->second = 0;
+
+		node = &(convexNodes->at(i));
 		node->first = 0;
 		node->second = 0;
 	}
@@ -115,10 +194,43 @@ template <typename T>
 void polyline<T>::addNode(const T&x, const T&y)
 {
 	if (endIndex == nodes->size())	//开辟更多的空间
-		nodes->resize(nodes->size() * 2 + 1);
+		nodes->resize(endIndex * 2 + 1);
 	nodes->at(endIndex).first = x;
 	nodes->at(endIndex).second = y;
 	endIndex++;
+	
+	if (YorderIndex == Yorder->size())
+		Yorder->resize(YorderIndex * 2 + 1);
+	for (int i = 0; i < YorderIndex; i++)
+	{	//结点
+		pair<T, T> iter = Yorder->at(i);
+		if (y < iter.second)
+		{
+			Yorder->insert(Yorder->begin() + i, pair<T, T>(endIndex - 1, y));
+			YorderIndex++;
+			return;
+		}
+		else if (y == iter.second)
+		{	//纵坐标相同，按照横坐标从左到右排
+			if (x < iter.first)
+			{
+				Yorder->insert(Yorder->begin() + i, pair<T, T>(endIndex - 1, y));
+				YorderIndex++;
+				return;
+			}
+		}
+	}
+	Yorder->at(YorderIndex).first = endIndex - 1;
+	Yorder->at(YorderIndex).second = y;
+	YorderIndex++;
+	if (endIndex > 2)
+		calConvex();
+	else
+	{
+		convexNodes->clear();
+		convexNodes->resize(0);
+		convexIndex = 0;
+	}
 }
 
 template <typename T>
@@ -139,6 +251,8 @@ void polyline<T>::rmNode(int seqNum)
 	//数组容量调整
 	if ((endIndex + 1) < (int)(nodes->size() / 2))
 		nodes->resize(nodes->size() / 2);	//删除重复空间
+
+	calConvex();
 }
 
 template <typename T>
@@ -157,6 +271,8 @@ void polyline<T>::drawPoints(const int type)
 	{
 		glVertex2d((GLdouble)nodes->at(endIndex - 1).first, (GLdouble)nodes->at(endIndex - 1).second);
 	}
+	else
+		return;
 	glColor3ub(255, 255, 255);
 	glPointSize(1);
 	glEnd();
@@ -169,11 +285,13 @@ void polyline<T>::drawEdges()
 	glColor3f(1.0f, 1.0f, 1.0f);
 	//glClear(GL_COLOR_BUFFER_BIT);		//不可以清空缓冲区，否则之前的点会被删除
 	glViewport(0, 0, 600, 600);
+	glLineWidth(2.0);
 	//按照边绘制
 	glBegin(GL_LINE_STRIP);
 	for (int i = 0; i < endIndex; i++)
 		glVertex2f(nodes->at(i).first, nodes->at(i).second);
 	glEnd();
+	glLineWidth(1.0);
 	glFlush();
 }
 
@@ -268,12 +386,24 @@ void polyline<T>::drawBezier(const int& type)
 template <typename T>
 void polyline<T>::drawConvexHull(GLubyte *color)
 {
+	calConvex();
+	if (convexNodes->size() < 3)
+		return;
 	GLubyte r = color[0];
 	GLubyte g = color[1];
 	GLubyte b = color[2];
 	//绘制所在的凸包
-	//先求凸包
-
+	glColor3ub(r, g, b);
+	glBegin(GL_POLYGON);
+	pair<T, T> *iter = NULL;
+	pair<T, T>* drawPoint = NULL;
+	for (int i = 0; i < convexNodes->size(); i++)
+	{
+		glVertex2i(convexNodes->at(i).first, convexNodes->at(i).second);
+	}
+	glEnd();
+	glFlush();
+	glColor3ub(255, 255, 255);
 }
 
 template <typename T>
@@ -371,5 +501,85 @@ const int& polyline<T>::findNearestEdge(
 	return -1;
 }
 
+template <typename T>
+const bool& polyline<T>::calConvex()
+{	//求顶点集的凸包
+	if (endIndex < 3)
+		return false;
+	convexNodes->clear();
+	convexNodes->resize(0);
+	convexIndex = 0;
+	int minYindex = 0;
+	stack<int> *nodeStack = new stack<int>();
+	//从所有顶点中查找纵坐标最小的
+	for (int i = 0; i < endIndex; i++)
+	{
+		if (nodes->at(i).second < nodes->at(minYindex).second)
+			minYindex = i;
+	}
+	pair<T, T> P0 = nodes->at(minYindex);
+	//对剩余顶点按照极角进行排序，创建优先队列
+	priority_queue<queueNode<int>, vector<queueNode<int> >, less<queueNode<int> > > *angle_queue
+		= new priority_queue<queueNode<int>, vector<queueNode<int> >, less<queueNode<int> > >();
+	//按照极角进行排序
+	for (int i = 0; i < endIndex; i++)
+	{
+		if (i == minYindex)
+			continue;
+		int deltaX = nodes->at(i).first - P0.first;
+		int deltaY = nodes->at(i).second - P0.second;
+		queueNode<int> insertNode(deltaX, deltaY, i);
+		angle_queue->push(insertNode);
+	}
+	//压入 P0
+	nodeStack->push(minYindex);
+	//压入 P1
+	nodeStack->push(angle_queue->top().index);
+	angle_queue->pop();
+	//压入 P2
+	nodeStack->push(angle_queue->top().index);
+	angle_queue->pop();
+	//for (int i = 0; i < angle_queue->size(); i++)
+	while(!angle_queue->empty())
+	{	//Pi
+		int Pi = angle_queue->top().index;
+		angle_queue->pop();
+
+		int topIndex = nodeStack->top();
+		nodeStack->pop();
+		int nextIndex = nodeStack->top();
+		nodeStack->push(topIndex);
+
+		while (!isLeft(nextIndex, topIndex, Pi))
+		{
+			nodeStack->pop();
+
+			topIndex = nodeStack->top();
+			nodeStack->pop();
+			nextIndex = nodeStack->top();
+			nodeStack->push(topIndex);
+		}
+		nodeStack->push(Pi);
+	}
+	while (!nodeStack->empty())
+	{
+		convexNodes->push_back(nodes->at(nodeStack->top()));
+		nodeStack->pop();
+		convexIndex++;
+	}
+	delete nodeStack;
+	delete angle_queue;
+}
+
+template <typename T>
+const bool& polyline<T>::isLeft(const int& srcIndex, const int& destIndex, const int& judgeIndex)
+{	//判断点 judgeIndex 在向量 (srcIndex, destIndex) 的左方还是右方
+	pair<T, T> node1 = nodes->at(srcIndex);
+	pair<T, T> node2 = nodes->at(destIndex);
+	pair<T, T> node = nodes->at(judgeIndex);
+	int p1 = (node2.first - node1.first) * (node.second - node1.second);
+	int p2 = (node2.second - node1.second) * (node.first - node1.first);
+	return p1 > p2;
+}
 
 #endif
