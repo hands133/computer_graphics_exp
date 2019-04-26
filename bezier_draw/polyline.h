@@ -96,18 +96,6 @@ public:
 		nodes->erase(nodes->begin() + theIndex);
 		nodes->resize(--endIndex);
 
-		bool delNode = false;
-		for (int i = 0; i < YorderIndex - 1; i++)
-		{
-			pair<T, T> index = Yorder->at(i);
-			if (index.first == theIndex)
-				delNode = true;
-			if (index.first > theIndex)
-				Yorder->at(i).first--;
-			if (delNode)
-				Yorder->at(i) = Yorder->at(i + 1);
-		}
-		Yorder->resize(--YorderIndex);
 		if(endIndex > 2)
 			calConvex();
 		else
@@ -134,8 +122,6 @@ private:
 	int endIndex;	//数组结尾指针
 	//存放结点个数的数组，两个分量分别为 x 和 y
 	vector<pair<T, T> >* nodes;
-	vector<pair<T, T> >* Yorder;	//按照 Y 值排序的数组
-	int YorderIndex;	//Yorder 的长度
 	vector<pair<T, T> >* convexNodes;
 	int convexIndex;	//convexNodes 的长度
 	int windowSize;		//窗口尺寸
@@ -169,17 +155,10 @@ polyline<T>::polyline(const int& windowSize, int numOfVertices)
 	convexNodes->resize(numOfVertices);
 	convexIndex = 0;
 	//初始化序列
-	Yorder = new vector<pair<T, T> >();
-	Yorder->resize(numOfVertices);
-	YorderIndex = 0;
 	
 	pair<T, T> *node;
 	for (int i = 0; i < nodes->size(); i++) {
 		node = &(nodes->at(i));
-		node->first = 0;
-		node->second = 0;
-
-		node = &(Yorder->at(i));
 		node->first = 0;
 		node->second = 0;
 
@@ -198,31 +177,7 @@ void polyline<T>::addNode(const T&x, const T&y)
 	nodes->at(endIndex).first = x;
 	nodes->at(endIndex).second = y;
 	endIndex++;
-	
-	if (YorderIndex == Yorder->size())
-		Yorder->resize(YorderIndex * 2 + 1);
-	for (int i = 0; i < YorderIndex; i++)
-	{	//结点
-		pair<T, T> iter = Yorder->at(i);
-		if (y < iter.second)
-		{
-			Yorder->insert(Yorder->begin() + i, pair<T, T>(endIndex - 1, y));
-			YorderIndex++;
-			return;
-		}
-		else if (y == iter.second)
-		{	//纵坐标相同，按照横坐标从左到右排
-			if (x < iter.first)
-			{
-				Yorder->insert(Yorder->begin() + i, pair<T, T>(endIndex - 1, y));
-				YorderIndex++;
-				return;
-			}
-		}
-	}
-	Yorder->at(YorderIndex).first = endIndex - 1;
-	Yorder->at(YorderIndex).second = y;
-	YorderIndex++;
+
 	if (endIndex > 2)
 		calConvex();
 	else
