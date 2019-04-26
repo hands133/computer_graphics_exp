@@ -68,6 +68,7 @@ public:
 	void drawPoints(const int type);	//绘制顶点
 	void drawEdges();					//绘制多边形折线
 	void drawBezier(const int &type);	//绘制贝塞尔曲线
+	void drawBSpline(const int& K);		//绘制 B 样条曲线
 	void drawConvexHull(GLubyte *color);//绘制折线的凸包
 
 	//找到距离 (posx, posy) 最近的点（返回顶点）
@@ -82,7 +83,7 @@ public:
 		nodes->at(theIndex).first = posx;
 		nodes->at(theIndex).second = posy;
 
-		calConvex();
+		//calConvex();
 	}
 	void insertByIndex(const int& posx, const int& posy, const int& theIndex)
 	{
@@ -126,10 +127,14 @@ private:
 	int convexIndex;	//convexNodes 的长度
 	int windowSize;		//窗口尺寸
 
+	vector<pair<double, double> >* BSPlineNodes;	//B 样条结点
+	vector<pair<double, double> > *BezierNodes;		//Bezier结点
+
 	long int combination(const long int& m, const long int& n);	//计算组合数
 	long int factorial(const int &n);		//阶乘
 	double B_i_n(const int& i,const double& t);		//计算点的权重
 	const bool& calConvex();	//计算凸包
+	//判断顶点 judgeIndex 在向量 (srcIndex, destIndex) 的左侧 (true) 还是右侧 (false)
 	const bool& isLeft(const int& srcIndex, const int& destIndex, const int& judgeIndex);
 };
 
@@ -155,7 +160,10 @@ polyline<T>::polyline(const int& windowSize, int numOfVertices)
 	convexNodes->resize(numOfVertices);
 	convexIndex = 0;
 	//初始化序列
-	
+
+	BSPlineNodes = new vector<pair<double, double> >(endIndex);
+	BezierNodes = new vector<pair<double, double>>(endIndex);
+
 	pair<T, T> *node;
 	for (int i = 0; i < nodes->size(); i++) {
 		node = &(nodes->at(i));
@@ -282,14 +290,9 @@ void polyline<T>::drawBezier(const int& type)
 	}
 	else if (type == BEZIER_NEW)
 	{	//将结点放在数组中
-		vector<pair<double, double> > *store = new vector<pair<double, double>>();
-		store->resize(endIndex);
+		if(BezierNodes->size() != endIndex)
+			BezierNodes->resize(endIndex);
 		//复制，此处为避免精度损失采用 double 类型
-		for (int i = 0; i < endIndex; i++)
-		{
-			store->at(i).first = (double)nodes->at(i).first;
-			store->at(i).second = (double)nodes->at(i).second;
-		}
 		vector<pair<double, double> >::iterator prev;	//指向头部
 		vector<pair<double, double> >::iterator next;	//指向次头部
 		double posx = 0.0, posy = 0.0;		//迭代点坐标
@@ -302,13 +305,13 @@ void polyline<T>::drawBezier(const int& type)
 		{
 			for (int i = 0; i < endIndex; i++)
 			{
-				store->at(i).first = (double)nodes->at(i).first;
-				store->at(i).second = (double)nodes->at(i).second;
+				BezierNodes->at(i).first = (double)nodes->at(i).first;
+				BezierNodes->at(i).second = (double)nodes->at(i).second;
 			}
 			for (int i = 0; i < endIndex - 1; i++)
 			{
-				prev = store->begin();	//指向头部
-				next = store->begin();	//指向次头部
+				prev = BezierNodes->begin();	//指向头部
+				next = BezierNodes->begin();	//指向次头部
 				next++;
 				for (int j = 0; j < endIndex - i - 1; j++)
 				{
@@ -330,12 +333,77 @@ void polyline<T>::drawBezier(const int& type)
 		glEnd();
 		glFlush();
 		glLineWidth(1.0);
-		delete store;
 	}
 	else			//等待完善
 		return;
 	
 	glColor3ub(255, 255, 255);
+}
+
+template <typename T>
+void polyline<T>::drawBSpline(const int& K)
+{	//绘制 B 样条曲线
+	if (K < 0)
+	{
+		cout << "错误，B 样条曲线阶数 " << K << " 小于零" << endl;
+		return;
+	}
+	if (endIndex <= K)	//控制顶点的个数必须要大于阶数
+		return;
+	if (endIndex < 3)
+		return;
+	if (K >= endIndex)
+	{
+		drawBezier(BEZIER_NEW);
+		return;
+	}
+	float t = 0.0;		//初始化
+	float step = 0.01;	//步长
+	float endPoint = (float)endIndex;	//迭代终点
+
+	//利用公式 3.18 计算固定 t 下的顶点 P(t) = P_j^[k-1](t)
+	if(BSPlineNodes->size() != endIndex)
+		BSPlineNodes->resize(endIndex);
+
+	pair<double, double> *iter = NULL;
+	pair<double, double> *prev = NULL;
+	int j = K - 1;
+	t = j;
+
+	glColor3ub(0, 0, 255);	//设定曲线颜色为蓝色
+	glLineWidth(2);
+	glBegin(GL_LINE_STRIP);
+
+	while (t < (endPoint - step / 2))
+	{	//t[i] = i
+		for (int i = 0; i < endIndex; i++)
+			BSPlineNodes->at(i) = nodes->at(i);
+		for (int r = 0; r < K; r++)
+		{	//r 作为顶点的阶
+			for (int i = j - K + r + 1; i <= j; i++)
+			{
+				if (r == 0)
+					break;
+				else
+				{
+					iter = &(BSPlineNodes->at(i));
+					prev = &(BSPlineNodes->at(i - 1));
+					iter->first = (t - i) / (double)(K - r) * iter->first + (i + K - r - t) / (double)(K - r)*prev->first;
+					iter->second = (t - i) / (double)(K - r) * iter->second + (i + K - r - t) / (double)(K - r)*prev->second;
+				}
+			}
+		}
+		glVertex2i(iter->first, iter->second);
+
+		t += step;
+		j = t;
+	}
+	glEnd();
+	glFlush();
+	glLineWidth(1.0);
+
+	iter = NULL;
+	prev = NULL;
 }
 
 template <typename T>
