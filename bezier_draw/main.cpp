@@ -18,7 +18,8 @@ int index = -1;				//删除顶点的下标
 
 GLubyte steelBlue[3] = { 70, 130, 180 };	//锈蓝
 
-const int& BSPLINE_ORDER = 4;
+int BSPLINE_ORDER = 5;
+int BSPLINE_TYPE = BSPLINE_CLAMP;
 
 void InitEnvironment(double windowSize)	//初始化操作
 {
@@ -59,7 +60,7 @@ void mouseInput(int button, int state, int x, int y)
 				if (BezierDrawn)
 				{
 					poly.drawBezier(BEZIER_NEW);
-					poly.drawBSpline(BSPLINE_ORDER);
+					poly.drawBSpline(BSPLINE_ORDER, BSPLINE_TYPE);
 				}
 				poly.drawPoints(DRAW_POINTS);
 				glBegin(GL_POINTS);
@@ -83,7 +84,7 @@ void mouseInput(int button, int state, int x, int y)
 				if (BezierDrawn)
 				{
 					poly.drawBezier(BEZIER_NEW);
-					poly.drawBSpline(BSPLINE_ORDER);
+					poly.drawBSpline(BSPLINE_ORDER, BSPLINE_TYPE);
 				}
 					
 				poly.drawPoints(DRAW_POINTS);
@@ -99,7 +100,7 @@ void mouseInput(int button, int state, int x, int y)
 					//poly.drawConvexHull(&steelBlue[0]);
 					poly.drawEdges();
 					poly.drawBezier(BEZIER_NEW);
-					poly.drawBSpline(BSPLINE_ORDER);
+					poly.drawBSpline(BSPLINE_ORDER, BSPLINE_TYPE);
 					poly.drawPoints(DRAW_POINTS);
 					glutSwapBuffers();
 					index = poly.size() - 1;
@@ -120,7 +121,7 @@ void mouseInput(int button, int state, int x, int y)
 					if (BezierDrawn)
 					{
 						poly.drawBezier(BEZIER_NEW);
-						poly.drawBSpline(BSPLINE_ORDER);
+						poly.drawBSpline(BSPLINE_ORDER, BSPLINE_TYPE);
 					}
 						
 					poly.drawPoints(DRAW_POINTS);
@@ -163,7 +164,7 @@ void mouseInput(int button, int state, int x, int y)
 			//poly.drawConvexHull(&steelBlue[0]);
 			poly.drawEdges();
 			poly.drawBezier(BEZIER_NEW);
-			poly.drawBSpline(BSPLINE_ORDER);
+			poly.drawBSpline(BSPLINE_ORDER, BSPLINE_TYPE);
 			poly.drawPoints(DRAW_POINTS);
 			glutSwapBuffers();
 			index = -1;
@@ -171,7 +172,7 @@ void mouseInput(int button, int state, int x, int y)
 		else
 		{
 			poly.drawBezier(BEZIER_NEW);
-			poly.drawBSpline(BSPLINE_ORDER);
+			poly.drawBSpline(BSPLINE_ORDER, BSPLINE_TYPE);
 			poly.drawPoints(DRAW_POINTS);
 			BezierDrawn = true;
 			glutSwapBuffers();
@@ -193,7 +194,44 @@ void mouseInput(int button, int state, int x, int y)
 		rightButtonHold = false;
 	}
 	else
-		return;
+	return;
+}
+
+void keyBoardFunc(unsigned char key, int x, int y)
+{
+	if (key == '+')
+	{
+		cout << "升阶 " << ++BSPLINE_ORDER << endl;
+		//重绘
+		glClear(GL_COLOR_BUFFER_BIT);
+		poly.drawEdges();
+		if (BezierDrawn)
+		{
+			poly.drawBezier(BEZIER_NEW);
+			poly.drawBSpline(BSPLINE_ORDER, BSPLINE_TYPE);
+		}
+		poly.drawPoints(DRAW_POINTS);
+		glutSwapBuffers();
+	}
+	else if (key == '-')
+	{
+		cout << "降阶 " << --BSPLINE_ORDER << endl;
+		if (BSPLINE_ORDER < 2)	//如果阶数小于 2 则不再重新绘制
+			BSPLINE_ORDER++;
+		else
+		{
+			//重绘
+			glClear(GL_COLOR_BUFFER_BIT);
+			poly.drawEdges();
+			if (BezierDrawn)
+			{
+				poly.drawBezier(BEZIER_NEW);
+				poly.drawBSpline(BSPLINE_ORDER, BSPLINE_TYPE);
+			}
+			poly.drawPoints(DRAW_POINTS);
+			glutSwapBuffers();
+		}
+	}
 }
 
 void dragEntity(int x, int y)
@@ -221,7 +259,7 @@ void dragEntity(int x, int y)
 	if (BezierDrawn)
 	{
 		poly.drawBezier(BEZIER_NEW);
-		poly.drawBSpline(BSPLINE_ORDER);
+		poly.drawBSpline(BSPLINE_ORDER, BSPLINE_TYPE);
 	}
 	poly.drawPoints(DRAW_POINTS);
 
@@ -250,8 +288,9 @@ int main(int argc, char*argv[]) {
 	glutInitWindowSize(windowSize, windowSize);
 	glutCreateWindow("Bezier 曲线");
 	InitEnvironment(windowSize);
-	glutMouseFunc(mouseInput);
-	glutMotionFunc(dragEntity);
+	glutMouseFunc(mouseInput);	//鼠标点击函数
+	glutMotionFunc(dragEntity);	//鼠标拖动函数
+	glutKeyboardFunc(keyBoardFunc);
 	glutDisplayFunc(drawBezier);
 	glutMainLoop();
 	return 0;

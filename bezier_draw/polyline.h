@@ -20,6 +20,10 @@
 #define BEZIER_STUPID 0
 #define BEZIER_NEW 1
 
+#define BSPLINE_GENERAL 0
+#define BSPLINE_CLAMP	1
+#define BSPLINE_CLISED	2
+
 using namespace std;
 
 template <typename T>
@@ -67,8 +71,8 @@ public:
 
 	void drawPoints(const int type);	//绘制顶点
 	void drawEdges();					//绘制多边形折线
-	void drawBezier(const int &type);	//绘制贝塞尔曲线
-	void drawBSpline(const int& K);		//绘制 B 样条曲线
+	void drawBezier(const int& type);	//绘制贝塞尔曲线
+	void drawBSpline(const int& K, const int& type);		//绘制 B 样条曲线
 	void drawConvexHull(GLubyte *color);//绘制折线的凸包
 
 	//找到距离 (posx, posy) 最近的点（返回顶点）
@@ -341,8 +345,9 @@ void polyline<T>::drawBezier(const int& type)
 }
 
 template <typename T>
-void polyline<T>::drawBSpline(const int& K)
+void polyline<T>::drawBSpline(const int& K, const int& type)
 {	//绘制 B 样条曲线
+	//注意这里输入的 K 是阶数不是次数
 	if (K < 0)
 	{
 		cout << "错误，B 样条曲线阶数 " << K << " 小于零" << endl;
@@ -358,52 +363,119 @@ void polyline<T>::drawBSpline(const int& K)
 		return;
 	}
 	float t = 0.0;		//初始化
-	float step = 0.01;	//步长
+	float step = 0.1;	//步长
 	float endPoint = (float)endIndex;	//迭代终点
 
-	//利用公式 3.18 计算固定 t 下的顶点 P(t) = P_j^[k-1](t)
-	if(BSPlineNodes->size() != endIndex)
-		BSPlineNodes->resize(endIndex);
+	if (type == BSPLINE_GENERAL)
+	{	//利用公式 3.18 计算固定 t 下的顶点 P(t) = P_j^[k-1](t)
+		if (BSPlineNodes->size() != endIndex)
+			BSPlineNodes->resize(endIndex);
 
-	pair<double, double> *iter = NULL;
-	pair<double, double> *prev = NULL;
-	int j = K - 1;
-	t = j;
+		pair<double, double> *iter = NULL;
+		pair<double, double> *prev = NULL;
+		int j = K - 1;
+		t = j;
 
-	glColor3ub(0, 0, 255);	//设定曲线颜色为蓝色
-	glLineWidth(2);
-	glBegin(GL_LINE_STRIP);
+		glColor3ub(0, 0, 255);	//设定曲线颜色为蓝色
+		glLineWidth(2);
+		glBegin(GL_LINE_STRIP);
 
-	while (t < (endPoint - step / 2))
-	{	//t[i] = i
-		for (int i = 0; i < endIndex; i++)
-			BSPlineNodes->at(i) = nodes->at(i);
-		for (int r = 0; r < K; r++)
-		{	//r 作为顶点的阶
-			for (int i = j - K + r + 1; i <= j; i++)
-			{
-				if (r == 0)
-					break;
-				else
+		while (t < (endPoint - step / 2))
+		{	//t[i] = i
+			for (int i = 0; i < endIndex; i++)
+				BSPlineNodes->at(i) = nodes->at(i);
+			for (int r = 0; r < K; r++)
+			{	//r 作为顶点的阶
+				for (int i = j - K + r + 1; i <= j; i++)
 				{
-					iter = &(BSPlineNodes->at(i));
-					prev = &(BSPlineNodes->at(i - 1));
-					iter->first = (t - i) / (double)(K - r) * iter->first + (i + K - r - t) / (double)(K - r)*prev->first;
-					iter->second = (t - i) / (double)(K - r) * iter->second + (i + K - r - t) / (double)(K - r)*prev->second;
+					if (r == 0)
+						break;
+					else
+					{
+						iter = &(BSPlineNodes->at(i));
+						prev = &(BSPlineNodes->at(i - 1));
+						iter->first = (t - i) / (double)(K - r) * iter->first + (i + K - r - t) / (double)(K - r)*prev->first;
+						iter->second = (t - i) / (double)(K - r) * iter->second + (i + K - r - t) / (double)(K - r)*prev->second;
+					}
 				}
 			}
+			glVertex2i(iter->first, iter->second);
+
+			t += step;
+			j = t;
 		}
-		glVertex2i(iter->first, iter->second);
+		glEnd();
+		glFlush();
+		glLineWidth(1.0);
 
-		t += step;
-		j = t;
+		iter = NULL;
+		prev = NULL;
 	}
-	glEnd();
-	glFlush();
-	glLineWidth(1.0);
+	else if (type == BSPLINE_CLAMP)
+	{
+		if (BSPlineNodes->size() != endIndex)
+			BSPlineNodes->resize(endIndex);
 
-	iter = NULL;
-	prev = NULL;
+		pair<double, double> header = nodes->at(0);
+		pair<double, double> footer = nodes->at(endIndex - 1);
+		BSPlineNodes->insert(BSPlineNodes->begin(), K - 1, header);
+		BSPlineNodes->insert(BSPlineNodes->end(), K - 1, footer);
+
+		int *tArray = new int[endIndex + 2 * K - 2];
+		for (int i = 0; i < endIndex + 2 * K - 2; i++)
+			tArray[i] = i;
+
+		pair<double, double> *iter = NULL;
+		pair<double, double> *prev = NULL;
+		int j = K - 1;
+		t = j;
+
+		glColor3ub(0, 0, 255);	//设定曲线颜色为蓝色
+		glLineWidth(2);
+		glBegin(GL_LINE_STRIP);
+
+		while (t < endIndex + 2 * K - 3 + step / 0.2)
+		{	//t[i] = i
+			for (int i = K - 1; i < endIndex + K - 1; i++)
+				BSPlineNodes->at(i) = nodes->at(i - K + 1);
+			for (int r = 1; r < K; r++)
+			{	//r 作为顶点的阶
+				for (int i = j - K + r + 1; i <= j; i++)
+				{
+					int t_i = tArray[i];
+					int t_ikr = 0;
+					if (i + K - r > endIndex + 2 * K - 3)
+						t_ikr = endIndex - 1;
+					else
+						t_ikr = tArray[i + K - r];
+
+					double a1 = t - t_i;
+					double a2 = t_ikr - t;
+					double b = t_ikr - t_i;
+					double r1 = 0.0;
+					double r2 = 0.0;
+					if (t_i != t_ikr)
+					{
+						r1 = a1 / b;
+						r2 = a2 / b;
+					}
+					iter = &(BSPlineNodes->at(i));
+					prev = &(BSPlineNodes->at(i - 1));
+					iter->first = r1 * iter->first + r2 * prev->first;
+					iter->second = r1 * iter->second + r2 * prev->second;
+				}
+			}
+			glVertex2i(BSPlineNodes->at(j).first, BSPlineNodes->at(j).second);
+			t += step;
+			j = t;
+		}
+		glEnd();
+		glFlush();
+		glLineWidth(1.0);
+
+		iter = NULL;
+		prev = NULL;
+	}
 }
 
 template <typename T>
