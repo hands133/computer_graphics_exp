@@ -2,7 +2,8 @@
 #ifndef _MESH_
 #define _MESH_
 
-#include "dataStruct.h"
+#include "dataStructure.h"
+#include "wrappedTools.h"
 
 #include <iostream>
 #include <vector>
@@ -31,13 +32,6 @@ using std::sin;
 
 const double PI = 3.1415926535897;
 const int padding = 1;
-const GLubyte syscolor[3] = { 255,0,0 };
-
-enum dType {
-	V, VT, VN, VP, DEG, BMAT, STEP, CSTYPE, P, L, F, CURV, CURV2, SURF,
-	PARM, TRIM, HOLE, SCRV, SP, END, CON, G, S, MG, O, BEVEL, C_INTERP,
-	D_INTERP, LOG, USEMTL, MTLLIB, SHADOW_OBJ, TRACE_OBJ, CTECH, STECH
-};
 
 const unsigned char DRAW_VERTEX = 0x01;			//绘制顶点
 const unsigned char DRAW_STRUCTURE = 0x02;		//绘制骨架
@@ -48,16 +42,12 @@ const unsigned char DRAW_OPTION1 = 0x20;		//未知选项1
 const unsigned char DRAW_OPTION2 = 0x40;		//未知选项2
 const unsigned char DRAW_OPTION3 = 0x80;		//未知选项3
 
-const unsigned char ROTATE_X_CLOCK  = 0x01;		//绕 X 轴旋转（顺时针）
+const unsigned char ROTATE_X_CLOCK = 0x01;		//绕 X 轴旋转（顺时针）
 const unsigned char ROTATE_X_ANTICLOCK = 0X02;	//绕 X 轴旋转（逆时针）
 const unsigned char ROTATE_Y_CLOCK = 0X04;		//绕 Y 轴旋转（顺时针）
 const unsigned char ROTATE_Y_ANTICLOCK = 0X08;	//绕 Y 轴旋转（逆时针）
 const unsigned char ROTATE_Z_CLOCK = 0x10;		//绕 Z 轴旋转（顺时针）
 const unsigned char ROTATE_Z_ANTICLOCK = 0X20;	//绕 Z 轴旋转（逆时针）
-
-const unsigned char LOOP_ROTATING_X = 0x01;		//绕 X 轴循环旋转
-const unsigned char LOOP_ROTATING_Y = 0x02;		//绕 Y 轴循环旋转
-const unsigned char LOOP_ROTATING_Z = 0x04;		//绕 Z 轴循环旋转
 
 class mesh
 {
@@ -65,47 +55,51 @@ public:
 	mesh();
 	~mesh();
 	bool initData(const char* fileName);
-	
+
 	bool draw(const unsigned char& type, const GLubyte* color);
-	//转动 radian 个弧度
+	//转动 radian 弧度
 	void rotateRadian(const unsigned char& type, const double& radian);
-	//每秒转动 speed 个弧度，一共转动 radian 个弧度，如果 radian 为负数则一直旋转
-	void rotateRadian(const unsigned char& type, const double& radian, const float& speed);
-	//转动 degree 个角度
+	//转动 degree 角度
 	void rotateDegree(const unsigned char& type, const int& degree);
-	//每秒转动 speed 个角度，一共转动 degree 个角度，如果 degree 为负数则一直旋转
+	//每秒转动 speed 弧度，一共转动 radian 个弧度，如果 radian 为负数则一直旋转
+	void rotateRadian(const unsigned char& type, const double& radian, const float& speed);
+	//每秒转动 speed 角度，一共转动 degree 个角度，如果 degree 为负数则一直旋转
 	void rotateDegree(const unsigned char& type, const int& degree, const int& speed);
 
 private:
+	//配合 DRAW 向外提供接口
 	const enum DRAW_TYPE {
 		VERTEX, STRUCTURE, SURF_NOTEXTURE, SURF_TEXTURE,
 		SURF_LIGHT, OPTION1, OPTION2, OPTION3
 	};
 
-	vector<vertex> *vertexList;
-	vector<verNorm> *verNormList;
-	vector<verTexture> *verTextList;
-	vector<vector<face> > *faceList;
+	vector<vertex> *vertexList;		//顶点数组
+	vector<verNorm> *verNormList;	//顶点法线数组
+	vector<verTexture> *verTextList;//顶点纹理数组
+	vector<vector<face> > *faceList;//面结构数组
 
-	int vertexItems;
-	int verNormItems;
-	int verTextItems;
-	int faceItems;
+	int vertexItems;	//顶点个数
+	int verNormItems;	//顶点法线个数
+	int verTextItems;	//顶点纹理个数
+	int faceItems;		//面个数
 
-	ifstream inFile;
+	ifstream inFile;	//文件读入流
 
 	bool extentSpace();	//申请更多的空间
 	void dispInfo();	//显示数据信息
 	void typeDraw(const DRAW_TYPE& type, const GLubyte* color);
 	//工具方法
 	void drawVertex(const GLubyte* color);
-	void drawEdges(const int& option, const GLubyte* color);
+	void drawEdges(const GLubyte* color);
 
+	//显示坐标系
 	void showCoordinate();
 
+	//定义显示区间
 	double minX, maxX, minY, maxY, minZ, maxZ;
 	double maxR;
 
+	//欧拉角
 	double alpha, beta, gamma;	//三个角度
 };
 
@@ -219,7 +213,7 @@ bool mesh::initData(const char* fileName)
 				maxR = maxX;
 			if (maxY > maxR)
 				maxR = maxY;
-			if(maxZ > maxR)
+			if (maxZ > maxR)
 				maxR = maxZ;
 		}
 		else if (buffer.compare("f") == 0)
@@ -267,8 +261,9 @@ bool mesh::initData(const char* fileName)
 	dispInfo();
 	inFile.close();
 	//glOrtho(minX - padding, maxX + padding, minY - padding, maxY + padding, minZ - padding, maxZ + padding);
-	glOrtho(-maxR - padding, maxR + padding, -maxR - padding, maxR + padding, -maxR - padding, maxR + padding);
-	cout << maxR << endl;
+	glOrtho(-maxR - padding, maxR + padding, -maxR - padding, maxR + padding, -maxR - padding, maxR * 2 + padding);
+	
+	gluLookAt(maxX, maxY, maxZ, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 }
 
 //绘制坐标系
@@ -287,12 +282,11 @@ void mesh::showCoordinate()
 	glEnd();
 	glFlush();
 	glLineWidth(1);
-	glColor3ub(syscolor[0], syscolor[1], syscolor[2]);
+	glColor3ub(defColor[0], defColor[1], defColor[2]);
 }
 
 bool mesh::draw(const unsigned char& type, const GLubyte* color)
 {
-	//cout << minX << " " << maxX << " " << minY << " " << maxY << " " << minZ << " " << maxZ << endl;
 	if (type == 0x00)
 	{
 		cout << "类型错误 " << (int)type << endl;
@@ -316,7 +310,7 @@ void mesh::typeDraw(const DRAW_TYPE& type, const GLubyte* color)
 	{
 	case VERTEX:		drawVertex(color);
 		break;
-	case STRUCTURE:		drawEdges(0, color);	//0表示不画面
+	case STRUCTURE:		drawEdges(color);
 		break;
 	case SURF_NOTEXTURE:
 		break;
@@ -335,36 +329,19 @@ void mesh::typeDraw(const DRAW_TYPE& type, const GLubyte* color)
 
 //绘制顶点
 void mesh::drawVertex(const GLubyte* color)
-{	
+{
 	cout << "绘制顶点" << endl;
-	GLubyte r = color[0];
-	GLubyte g = color[1];
-	GLubyte b = color[2];
-	glColor3ub(r, g, b);
-	//glPointSize(1);
-
-	glBegin(GL_POINTS);
-	vertex *iter = NULL;
-	for (int i = 0; i < vertexItems; i++)
-	{
-		iter = &(vertexList->at(i));
-		glVertex3d(iter->x, iter->y, iter->z);
-	}
-	glEnd();
-	glFlush();
-
-	//glPointSize(1);
-	glColor3ub(255, 255, 255);
+	drawVertexes(vertexList, color);
 	cout << "绘制完毕" << endl;
 }
 
 //绘制边和面
-void mesh::drawEdges(const int& option, const GLubyte* color)
+void mesh::drawEdges(const GLubyte* color)
 {
 	GLubyte r = color[0];
 	GLubyte g = color[1];
 	GLubyte b = color[2];
-	glColor3ub(255, 0, 0);
+	glColor3ub(r, g, b);
 	//glLineWidth(2);
 
 	vector<face> *iter = NULL;
@@ -389,12 +366,12 @@ void mesh::drawEdges(const int& option, const GLubyte* color)
 
 //显示数据信息
 void mesh::dispInfo()
-{	
+{
 	cout << "数据信息" << endl;
-	cout << "结点共 " << vertexList->size() << "个:" << vertexItems << endl;
-	cout << "贴图共 " << verTextList->size() << "个:" << verTextItems << endl;
-	cout << "法线共 " << verNormList->size() << "个:" << verNormItems << endl;
-	cout << "面片共 " << faceList->size() << "个:" << faceItems << endl;
+	cout << "结点 " << vertexList->size() << " 个" << endl;
+	cout << "贴图 " << verTextList->size() << " 个" << endl;
+	cout << "法线 " << verNormList->size() << " 个" << endl;
+	cout << "面片 " << faceList->size() << " 个" << endl;
 }
 
 //扩展内存
@@ -424,43 +401,82 @@ void mesh::rotateDegree(const unsigned char& type, const int& degree)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	showCoordinate();
 	double radius = (double)degree * PI / 180.0;
-	double cosTheta = 0.0;
-	double sinTheta = 0.0;
+	double cosAngle = 0.0;
+	double sinAngle = 0.0;
 
 	double x = 0.0;
 	double y = 0.0;
 	double z = 0.0;
+
+	vector<face> *faceIter = NULL;
+	face *innerIter = NULL;
+	vertex *vertexIter = NULL;
+
 	switch (type)
 	{
 	case ROTATE_X_CLOCK:
-	{
 		alpha += radius;
-		cosTheta = cos(alpha);
-		sinTheta = sin(alpha);
-		vector<face> *faceiter = NULL;
-		face *innerIter = NULL;
-		vertex *vertexIter = NULL;
-		for (int i = 0; i < faceItems; i++)
-		{
-			glBegin(GL_LINE_LOOP);
-			faceiter = &(faceList->at(i));
-			for (int j = 0; j < faceiter->size(); j++)
-			{
-				innerIter = &(faceiter->at(j));
-				vertexIter = &(vertexList->at(innerIter->vertIndex - 1));
-				x = vertexIter->x;
-				y = vertexIter->y;
-				z = vertexIter->z;
-				glVertex3d(x, y * cosTheta - z * sinTheta, y * sinTheta + z * cosTheta);
-			}
-			glEnd();
-			glFlush();
-		}
-	}
+		cosAngle = cos(alpha);
+		sinAngle = sin(alpha);
 		break;
 	case ROTATE_X_ANTICLOCK:
+		alpha -= radius;
+		cosAngle = cos(alpha);
+		sinAngle = sin(alpha);
 		break;
+	case ROTATE_Y_CLOCK:
+		beta += radius;
+		cosAngle = cos(beta);
+		sinAngle = sin(beta);
+		break;
+	case ROTATE_Y_ANTICLOCK:
+		beta -= radius;
+		cosAngle = cos(beta);
+		sinAngle = sin(beta);
+		break;
+	case ROTATE_Z_CLOCK:
+		gamma += radius;
+		cosAngle = cos(gamma);
+		sinAngle = sin(gamma);
+		break;
+	case ROTATE_Z_ANTICLOCK:
+		gamma -= radius;
+		cosAngle = cos(gamma);
+		sinAngle = sin(gamma);
+		break;
+	}
+
+	for (int i = 0; i < faceItems; i++)
+	{
+		glBegin(GL_LINE_LOOP);
+		faceIter = &(faceList->at(i));
+		for (int j = 0; j < faceIter->size(); j++)
+		{
+			innerIter = &(faceIter->at(j));
+			vertexIter = &(vertexList->at(innerIter->vertIndex - 1));
+			x = vertexIter->x;
+			y = vertexIter->y;
+			z = vertexIter->z;
+			switch (type)
+			{
+			case ROTATE_X_CLOCK:
+			case ROTATE_X_ANTICLOCK:
+				glVertex3d(x, y * cosAngle - z * sinAngle, y * sinAngle + z * cosAngle);
+				break;
+			case ROTATE_Y_CLOCK:
+			case ROTATE_Y_ANTICLOCK:
+				glVertex3d(x * cosAngle + z * sinAngle, y, -x * sinAngle + z * cosAngle);
+				break;
+			case ROTATE_Z_CLOCK:
+			case ROTATE_Z_ANTICLOCK:
+				glVertex3d(x * cosAngle - y * sinAngle, x * sinAngle + y * cosAngle, z);
+				break;
+			}
+		}
+		glEnd();
+		glFlush();
 	}
 	glutSwapBuffers();
 }
+
 #endif

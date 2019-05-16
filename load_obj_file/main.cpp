@@ -1,5 +1,6 @@
 #include <string>
 #include <Windows.h>
+
 #include "mesh.h"
 
 
@@ -18,7 +19,7 @@ bool motion = false;
 bool rotating = false;
 
 void InitEnvironment()	//初始化操作
-{	
+{
 	glEnable(GL_DEPTH);
 	//设置清除颜色
 	glClearColor(0.0, 0.0, 0.0, 0);
@@ -48,7 +49,7 @@ void mouseInput(int button, int state, int x, int y)
 	{	//绕 X 轴旋转 30 度
 		surface->rotateDegree(ROTATE_X_CLOCK, 30);
 		GLubyte color[3] = { 255,255,255 };
-		surface->draw(DRAW_STRUCTURE, color);
+		//surface->draw(DRAW_STRUCTURE, color);
 	}
 }
 
@@ -69,8 +70,10 @@ void keyBoardFunc(unsigned char key, int x, int y)
 		if (!rotating)
 		{	//创建线程循环
 			rotating = true;
-			std::thread t(loopRotating, ROTATE_X_CLOCK, 2, std::ref(rotating));
-			t.detach();
+			//std::thread t(loopRotating, ROTATE_X_CLOCK, 2, std::ref(rotating));
+			//t.join();
+			while(true)
+				surface->rotateDegree(ROTATE_X_CLOCK, 2);
 			/*loopRotating(ROTATE_X_CLOCK,2,rotating);*/
 		}
 		else
@@ -81,13 +84,13 @@ void keyBoardFunc(unsigned char key, int x, int y)
 		surface->draw(DRAW_STRUCTURE, color);
 	}
 	break;
-		caseX:
+caseX:
 	case 'x':
 		break;
-		caseY:
+	caseY:
 	case 'y':
 		break;
-		caseZ:
+	caseZ:
 	case 'z':
 		break;
 	case 'X': goto caseX;

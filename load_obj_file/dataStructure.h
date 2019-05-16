@@ -1,5 +1,32 @@
 #pragma once
 
+#include <gl/glut.h>
+
+struct Color
+{
+	GLubyte r;
+	GLubyte g;
+	GLubyte b;
+	Color() :r(0xff), g(0xff), b(0xff) {}
+	Color(GLubyte *color)
+	{
+		if (color == NULL)
+		{
+			r = g = b = 0xff;
+			return;
+		}
+		r = color[0];
+		g = color[1];
+		b = color[2];
+	}
+	Color(const Color& theColor)
+	{
+		r = theColor.r;
+		g = theColor.g;
+		b = theColor.b;
+	}
+};
+
 struct vertex
 {	//¶¥µã×ø±ê
 	double x;
