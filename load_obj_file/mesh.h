@@ -30,7 +30,7 @@ using std::thread;
 using std::cos;
 using std::sin;
 
-const double PI = 3.1415926535897;
+const static double PI = 3.1415926535897;
 const int padding = 1;
 
 const unsigned char DRAW_VERTEX = 0x01;			//绘制顶点
@@ -65,7 +65,9 @@ public:
 	void rotateRadian(const unsigned char& type, const double& radian, const float& speed);
 	//每秒转动 speed 角度，一共转动 degree 个角度，如果 degree 为负数则一直旋转
 	void rotateDegree(const unsigned char& type, const int& degree, const int& speed);
-
+	//旋转摄像机
+	void rotateCamera(const unsigned char& type, const int& degree);
+	void setView();
 private:
 	//配合 DRAW 向外提供接口
 	const enum DRAW_TYPE {
@@ -99,8 +101,11 @@ private:
 	double minX, maxX, minY, maxY, minZ, maxZ;
 	double maxR;
 
-	//欧拉角
-	double alpha, beta, gamma;	//三个角度
+	double alpha, beta, gamma;	//物体三个角度（绝对坐标系）
+	double cameraX, cameraY, cameraZ;	//摄像机绝对位置
+	double cameraAlpha, cameraBeta, cameraGamma;
+
+	unsigned char type;	//上一次操作的类型
 };
 
 mesh::mesh()
@@ -117,6 +122,13 @@ mesh::mesh()
 
 	minX = maxX = minY = maxY = minZ = maxZ = 0.0;
 	maxR = 0.0;
+
+	cameraX = 0;
+	cameraY = 0;
+	cameraZ = 0;
+	cameraAlpha = 0.0;
+	cameraBeta = 0.0;
+	cameraGamma = 0.0;
 }
 
 mesh::~mesh()
@@ -261,16 +273,25 @@ bool mesh::initData(const char* fileName)
 	dispInfo();
 	inFile.close();
 	//glOrtho(minX - padding, maxX + padding, minY - padding, maxY + padding, minZ - padding, maxZ + padding);
+}
+
+void mesh::setView()
+{
+	glMatrixMode(GL_PROJECTION);
 	glOrtho(-maxR - padding, maxR + padding, -maxR - padding, maxR + padding, -maxR - padding, maxR * 2 + padding);
-	
-	gluLookAt(maxX, maxY, maxZ, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+	glMatrixMode(GL_MODELVIEW);
+	cameraX = maxX;
+	cameraY = maxY;
+	cameraZ = maxZ;
+	gluLookAt(cameraX, cameraY, cameraZ, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 }
 
 //绘制坐标系
 void mesh::showCoordinate()
 {
+	//蓝色 X 轴，绿色 Y 轴，红色 Z 轴
 	double axis[3][3] = { {maxR + padding, 0, 0}, {0, maxR + padding, 0}, {0, 0, maxR + padding} };
-	GLubyte colors[3][3] = { {0,0,255},{0,255,0},{255,255,0} };
+	GLubyte colors[3][3] = { {0,0,255},{0,255,0},{255,0,0} };
 	glLineWidth(2);
 	glBegin(GL_LINES);
 	for (int i = 0; i < 3; i++)
@@ -292,6 +313,7 @@ bool mesh::draw(const unsigned char& type, const GLubyte* color)
 		cout << "类型错误 " << (int)type << endl;
 		return false;
 	}
+	this->type = type;
 	bitset<8> bits(type);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	showCoordinate();
@@ -338,6 +360,8 @@ void mesh::drawVertex(const GLubyte* color)
 //绘制边和面
 void mesh::drawEdges(const GLubyte* color)
 {
+	glutSolidCube(1);
+
 	GLubyte r = color[0];
 	GLubyte g = color[1];
 	GLubyte b = color[2];
@@ -350,6 +374,7 @@ void mesh::drawEdges(const GLubyte* color)
 	for (int i = 0; i < faceItems; i++)
 	{
 		glBegin(GL_LINE_LOOP);
+		//glBegin(GL_POLYGON);
 		iter = &(faceList->at(i));
 		for (int j = 0; j < iter->size(); j++)
 		{
@@ -479,4 +504,60 @@ void mesh::rotateDegree(const unsigned char& type, const int& degree)
 	glutSwapBuffers();
 }
 
+//旋转摄像机
+void mesh::rotateCamera(const unsigned char& type, const int& degree)
+{
+	double camerax = cameraX;
+	double cameray = cameraY;
+	double cameraz = cameraZ;
+	double radius = degree * PI / 180.0;
+	switch (type)
+	{
+	case ROTATE_X_CLOCK:
+		cameraAlpha += radius;
+		cameraX = camerax;
+		cameraY = cameray * cos(radius) - cameraz * sin(radius);
+		cameraZ = cameray * sin(radius) + cameraz * cos(radius);
+		break;
+	case ROTATE_X_ANTICLOCK:
+		cameraAlpha -= radius;
+		cameraX = camerax;
+		cameraY = cameray * cos(radius) + cameraz * sin(radius);
+		cameraZ = -cameray * sin(radius) + cameraz * cos(radius);
+		break;
+	case ROTATE_Y_CLOCK:
+		cameraBeta += radius;
+		cameraX = camerax * cos(radius) + cameraz * sin(radius);
+		cameraY = cameray;
+		cameraZ = -camerax * sin(radius) + cameraz * cos(radius);
+		break;
+	case ROTATE_Y_ANTICLOCK:
+		cameraBeta -= radius;
+		cameraX = camerax * cos(radius) - cameraz * sin(radius);
+		cameraY = cameray;
+		cameraZ = camerax * sin(radius) + cameraz * cos(radius);
+		break;
+	case ROTATE_Z_CLOCK:
+		cameraGamma += radius;
+		cameraX = camerax * cos(radius) - cameray * sin(radius);
+		cameraY = camerax * sin(radius) + cameray * cos(radius);
+		cameraZ = cameraz;
+		break;
+	case ROTATE_Z_ANTICLOCK:
+		cameraGamma -= radius;
+		cameraX = camerax * cos(radius) + cameray * sin(radius);
+		cameraY = -camerax * sin(radius) + cameray * cos(radius);
+		cameraZ = cameraz;
+		break;
+	}
+	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	
+	//glLoadIdentity();
+
+	gluLookAt(cameraX, cameraY, cameraZ, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+	//glOrtho(-maxR - padding, maxR + padding, -maxR - padding, maxR + padding, -maxR - padding, maxR * 2 + padding);
+	glutPostRedisplay();
+	cout << cameraX << ":" << cameraY << ":" << cameraZ << ":" << endl;
+	//cout << cameraX * cameraX + cameraY * cameraY + cameraZ * cameraZ << endl;
+}
 #endif
